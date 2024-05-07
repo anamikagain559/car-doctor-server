@@ -8,7 +8,12 @@ const port = process.env.PORT || 5000;
 
 // middleware
 
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5173"],
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.vy8vv76.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -27,16 +32,28 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     const serviceCollection = client.db("carDoctor").collection("services");
     const bookingCollection = client.db("carDoctor").collection("bookings");
+
     // auth related api
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       console.log(user);
-      const token = jwt.sign(user, "secret", {
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "1h",
       });
-
-      res.send(token);
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+      });
+      res.send({ success: true });
     });
+
+    app.post("/logout", async (req, res) => {
+      const user = req.body;
+      console.log("logging out", user);
+      res.clearCookie("token", { maxAge: 0 }).send({ success: true });
+    });
+
     //Service related APi
     app.get("/services", async (req, res) => {
       const cursor = serviceCollection.find();
